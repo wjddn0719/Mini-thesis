@@ -47,19 +47,13 @@ Prim 알고리즘은 그래프에서 최소 신장 트리(MST)를 찾는 방법 
   * 노드의 대푯값을 반환한다.   
 
 ### Prim 변수
-* `parent: any[size]`  
-  * 각 원소가 가진 대푯값을 표시하는 배열이다.  
+* `adj: vector<pair<int,int>>`  
+  * 두 노드 및 거리를 저장하는 변수이다.
 * `pq": tuple({int, int, int})`  
   * 두 정점과 그 사이의 거리를 저장하는 우선순위 큐 배열이다. 
 
-### Prim ADT
-* `my_union() -> void`  
-  * 두 노드를 병합하는 함수이다.
-* `find() -> int`  
-  * 노드의 대푯값을 반환한다.   
-
 ### Exception
-* 특별한 예외 상황은 존재하지 않는다.
+* 그래프가 연결되있지 않다면 MST를 구할수없다.
 
 ## 구현 상세 및 핵심 코드
 
@@ -94,59 +88,168 @@ int find(int a){
 }
 ``` 
 
-## 복잡도 분석
-* 위 함수를 바탕으로 Union-Find를 하게 된다면 처음에는 O(n)의 시간 복잡도를 가지지만 계속해서 parent의 값이 갱신되므로 경로를 찾는 연산 횟수가 낮아지기 때문에 나중에는 O(1)의 시간복잡도를 가지게 된다. 이를 아커만 함수 역함수로 부르며, O(a(n))으로 표현된다.
+### `Kurskal`
+
+Union-Find 연산을통해 두 노드간 거리가 가장 짧은값을 pop 연산 하여 사이클의 유무에 따라 MST의 최단거리를 구하는 코드이다.
+
+```c
+while(!pq.empty()){
+		int w, a, b;
+		tie(w,a,b) = pq.top(); pq.pop();
+		if(coun == V-1)break;
+		if(my_union(a,b)){
+			sum+=w;
+			coun++;
+		}
+	}
+```
+
+### `Prim`
+
+heapq에 있는 두 노드 사이의 거리가 가장 작은 값으로부터 중복연산 빛 push, pop 연산을 통해 MST를 확장하여 최단거리를 구하는 코드이다.
+
+```c
+pq.push({0,1});
+    while(!pq.empty() && V<N){
+        int current = pq.top().second;
+        int value = pq.top().first;
+        pq.pop();
+        if(visited[current])continue;
+        visited[current] = 1;
+        sum+=value;
+        V++;
+        for(int i=0; i<adj[current].size(); i++){
+            int next = adj[current][i].first;
+            int nextValue = adj[current][i].second;
+            if(!visited[next])pq.push({nextValue, next});
+        }
+    }
+```
 
 ## 복잡도 분석
-* 위 함수를 바탕으로 Union-Find를 하게 된다면 처음에는 O(n)의 시간 복잡도를 가지지만 계속해서 parent의 값이 갱신되므로 경로를 찾는 연산 횟수가 낮아지기 때문에 나중에는 O(1)의 시간복잡도를 가지게 된다. 이를 아커만 함수 역함수로 부르며, O(a(n))으로 표현된다.
+
+### Kruskal 시간복잡도
+* 간선이 M개라고 할때 넣고 빼는데 드는 시간이 M * log M 정도이고, 점들을 합치는 Union-Find 과정은 거의 상수시간 이므로 무시할수있다. 그러므로 Kruskal의 시간복잡도는 O(E log E)이다.
+
+### Prim 시간복잡도
+* 간선(M)을 입력으로 받고 저장하는데 O(M)이 걸리고 우선순위 큐를 이용해 최소 가중치 간선을 반복 선택하는 과정에서 각 간선이 최대 한번씩 삽입, 삭제가 되므로 M * log M이다. 그러므로 전체 시간 복잡도는 O(M log M)≈O(M log V)이다.
 
 ## 전체 코드
-```c
-#include <stdio.h>
 
-int parent[1000001]={0,};
+### Kruskal
+
+```c
+#include <iostream> 
+#include <vector> 
+#include <queue>
+#include <utility> 
+#include <tuple>
+using namespace std; 
+priority_queue<tuple<int,int,int>, vector<tuple<int,int,int>>,greater<tuple<int,int,int>>> pq;
+
+int parent[10001]={0,};
+int sum = 0;
+int coun = 0;
 
 int find(int a){
-    if(parent[a]==a)return a;
-    return parent[a] = find(parent[a]);
+	if(parent[a]==a)return a;
+	return parent[a] = find(parent[a]);
 }
 
-void my_union(int b, int c){
-    int RootX = find(b);
-    int RootY = find(c);
-    if(RootX!=RootY){
-        if(RootX>RootY)parent[RootX] = parent[RootY];
-        else parent[RootY] = parent[RootX];
-    }
+int my_union(int a, int b){
+	int RootX = find(a);
+	int RootY = find(b);
+	if(RootX == RootY){
+		return 0; 
+	}
+	else if(RootX<RootY){
+		parent[RootY] = RootX; 
+	}
+	else{
+		parent[RootX] = RootY;
+	}
+	return 1;
 }
 
 int main(){
-    int n, m;
-    scanf("%d %d", &n, &m);
-    for(int i=1; i<=n; i++){
-        parent[i] = i;
-    }
-    for(int i=1; i<=m; i++){
-        int a, b, c;
-        scanf("%d %d %d", &a, &b, &c);
-        if(a==0){
-            my_union(b, c);
-        }
-        else{
-            if(find(b)==find(c))printf("YES\n");
-            else printf("NO\n");
-        }
-    }
-    return 0;
+	int V, E;
+	scanf("%d %d", &V, &E);
+	for(int i=1; i<=V; i++){
+		parent[i] = i;
+	}
+	for(int i=1; i<=E; i++){
+		int a, b, c;
+		scanf("%d %d %d", &a, &b, &c);
+		pq.push({c,a,b});
+		pq.push({c,b,a});
+	}
+	while(!pq.empty()){
+		int w, a, b;
+		tie(w,a,b) = pq.top(); pq.pop();
+		if(coun == V-1)break;
+		if(my_union(a,b)){
+			sum+=w;
+			coun++;
+		}
+	}
+	printf("%d", sum);
 }
 ```
 
+## Prim
+
+```c
+#include <iostream>
+#include <utility>
+#include <vector>
+#include <queue>
+using namespace std;
+priority_queue<pair<int,int>, vector<pair<int,int>>, greater<pair<int,int>>> pq;
+
+vector<pair<int,int>> adj[100001];
+int visited[100001]={0,};
+long long int sum = 0;
+int V = 0;
+int main(){
+    int N, M;
+    long long int R = 0;
+    scanf("%d %d", &N, &M);
+    for(int i=1; i<=M; i++){
+        int a, b, c;
+        scanf("%d %d %d", &a, &b, &c);
+        R+=c;
+        adj[a].push_back({b,c});
+        adj[b].push_back({a,c});
+    }
+    pq.push({0,1});
+    while(!pq.empty() && V<N){
+        int current = pq.top().second;
+        int value = pq.top().first;
+        pq.pop();
+        if(visited[current])continue;
+        visited[current] = 1;
+        sum+=value;
+        V++;
+        for(int i=0; i<adj[current].size(); i++){
+            int next = adj[current][i].first;
+            int nextValue = adj[current][i].second;
+            if(!visited[next])pq.push({nextValue, next});
+        }
+    }
+    if(V<N){
+        printf("-1");
+        return 0;
+    }
+    printf("%lld", R-sum);
+    return 0;
+}
+```
 # 활용 방안
-1. 서버/네트워크 연결 체크
-     - Union-Find를 활용하여 연결된 네트워크를 빠르고 쉽게 확인할수있다.
+1. 전력 계통 분리 운영
+     - 송전망을 분리해야할때 Kruskal 및 Prim 알고리즘을 사용하면 가장 비싼 간선은 제거하되 연결된 송전망들을 최소비용으로 구축할수있다.
 
 # 인상깊었던 점
-이전에는 DFS, BFS, 다익스트라, 플로이드 워셜, 벨만-포드 등 최단경로, 즉 정점과 정점 사이의 최단거리를 초점에 뒀다면 이번에는 이 노드가 다른노드와 연결되있는지 확인하는 자료구조라 새로웠다. 또한 단순히 같은 경로에 있다는것이 아니라 집합이라는 수학 개념을 활용하여 자료구조를 정의했다는것이 인상깊었다.
+이전부터 트리의 최단경로 같은 문제를 볼때면 "그냥 다익스트라 쓰면되는거 아닌가?" 라고 생각하여 실제로 구현해보니 답이 제대로 안나왔었는데 이번주에 Tree와 Kruskal, Prim을 배움으로써 왜 안되는지, 트리가 무엇인지 알게되어서 행복했다. 
 
 # 참고문헌
-[유니온 파인드(Union-Find)](https://yuanie.tistory.com/13)
+[[알고리즘] 크루스칼(Kruskal)과 프림(Prim)](https://ongveloper.tistory.com/376)
